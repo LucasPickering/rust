@@ -1226,6 +1226,40 @@ impl<T> Option<T> {
         }
     }
 
+    /// Maps an `Option<T>` to `Option<Result<U, E>>` by applying a function to
+    /// a contained value, then transposing the `Option<Result<U, E>>` into
+    /// `Result<Option<U>, E>`. This allows for easy error handling in fallible
+    /// functions, using the `?` operator. `opt.try_map(f)` is equivalent to
+    /// `opt.map(f).transpose()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(option_try_map)]
+    ///
+    /// #[derive(Debug, Eq, PartialEq)]
+    /// struct SomeErr;
+    ///
+    /// fn try_even(x: u32) -> Result<u32, SomeErr> {
+    ///     if x % 2 == 0 {
+    ///         Ok(x)
+    ///     } else {
+    ///         Err(SomeErr)
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(Some(2u32).try_map(try_even), Ok(Some(2)));
+    /// assert_eq!(Some(3u32).try_map(try_even), Err(SomeErr));
+    /// ```
+    #[inline]
+    #[unstable(feature = "option_try_map", issue = "none")]
+    pub fn try_map<U, E, F>(self, f: F) -> Result<Option<U>, E>
+    where
+        F: FnOnce(T) -> Result<U, E>,
+    {
+        self.map(f).transpose()
+    }
+
     /// Transforms the `Option<T>` into a [`Result<T, E>`], mapping [`Some(v)`] to
     /// [`Ok(v)`] and [`None`] to [`Err(err)`].
     ///
@@ -1758,7 +1792,11 @@ impl<T> Option<T> {
     where
         P: FnOnce(&mut T) -> bool,
     {
-        if self.as_mut().map_or(false, predicate) { self.take() } else { None }
+        if self.as_mut().map_or(false, predicate) {
+            self.take()
+        } else {
+            None
+        }
     }
 
     /// Replaces the actual value in the option by the value given in parameter,
